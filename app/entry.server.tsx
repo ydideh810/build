@@ -5,6 +5,10 @@ import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from '~/lib/stores/theme';
 
+// Import react-dom/server as a CommonJS module
+import pkg from 'react-dom/server';
+const { renderToReadableStream } = pkg;
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
@@ -12,13 +16,16 @@ export default async function handleRequest(
   remixContext: EntryContext,
   _loadContext: AppLoadContext,
 ) {
-  const readable = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
-    signal: request.signal,
-    onError(error: unknown) {
-      console.error(error);
-      responseStatusCode = 500;
-    },
-  });
+  const readable = await renderToReadableStream(
+    <RemixServer context={remixContext} url={request.url} />,
+    {
+      signal: request.signal,
+      onError(error: unknown) {
+        console.error(error);
+        responseStatusCode = 500;
+      },
+    }
+  );
 
   const body = new ReadableStream({
     start(controller) {
@@ -27,9 +34,9 @@ export default async function handleRequest(
       controller.enqueue(
         new Uint8Array(
           new TextEncoder().encode(
-            `<!DOCTYPE html><html lang="en" data-theme="${themeStore.value}"><head>${head}</head><body><div id="root" class="w-full h-full">`,
-          ),
-        ),
+            `<!DOCTYPE html><html lang="en" data-theme="${themeStore.value}"><head>${head}</head><body><div id="root" class="w-full h-full">`
+          )
+        )
       );
 
       const reader = readable.getReader();
@@ -66,7 +73,6 @@ export default async function handleRequest(
   }
 
   responseHeaders.set('Content-Type', 'text/html');
-
   responseHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
   responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
 
